@@ -14,3 +14,7 @@ Create the configuration file and setup your MySQL database connection and teleg
 ```
 cp config.yml.example config.yml && nano config.yml
 ```
+
+```
+python3 main.py
+```

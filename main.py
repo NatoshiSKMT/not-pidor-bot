@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import yaml
 try:
-    config = yaml.safe_load(open("fconfig.yml"))
+    config = yaml.safe_load(open("config.yml"))
 except Exception as e:
     raise ValueError("Create your config.yml via 'cp config.yml.example config.yml && nano config.yml'")
 
