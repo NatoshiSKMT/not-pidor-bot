@@ -1,0 +1,5 @@
+host: localhost
+user: MySQL_user_name
+database: MySQL_database
+password: MySQL_password
+token: Telegrab_bot_token
