@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
+import yaml
+try:
+    config = yaml.safe_load(open("fconfig.yml"))
+except Exception as e:
+    raise ValueError("Create your config.yml via 'cp config.yml.example config.yml && nano config.yml'")
 
 import mysql.connector
-from datetime import datetime
-
-import yaml
-config = yaml.safe_load(open("config.yml"))
-
 mydb = mysql.connector.connect(
     host=config['host'],
     user=config['user'],
@@ -15,9 +15,11 @@ mydb = mysql.connector.connect(
 cursor = mydb.cursor()
 
 from telegram.ext import Updater
-updater = Updater(token=config['password'])
+updater = Updater(token=config['token'])
 updater.start_polling()
 dispatcher = updater.dispatcher
+
+from datetime import datetime
 
 def find_plural(word):
     startTime = datetime.now()
