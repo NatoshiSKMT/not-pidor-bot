@@ -18,6 +18,10 @@ from datetime import datetime
 import re
 import random
 
+def onsticker(update, context):
+    if update.message.chat.id == config['admin_chat_id']:
+        update.message.reply_text(update.message.sticker.file_id)
+
 def ontext(update, context):
     tg_chat_id = update.message.chat.id
     tg_from_id = update.message.from_user.id
@@ -33,10 +37,11 @@ def ontext(update, context):
     #Personal replies
     #check personal timeout
     last_user_inter = last_interaction(tg_chat_id, tg_from_id)
-    if last_user_inter['seconds'] > config['timeout_personal']:
+    if last_user_inter['seconds'] > config['timeout_personal'] or tg_chat_id == config['admin_chat_id']:
         for reaction in config['reactions']:
-            if reaction['prob'] >= random.randrange(100):
+            if reaction['prob'] >= random.randrange(100) or tg_chat_id == config['admin_chat_id']:
                 do_reaction = False
+                #whe is the pattern
                 if reaction['where'] == 'end':
                     for pattern in reaction['pattern']:
                         if clear_text.endswith(pattern):
@@ -54,10 +59,40 @@ def ontext(update, context):
                         if clear_text.find(pattern) >= 0:
                             do_reaction = True
                 if do_reaction:
-                    reply_text = random.choice(reaction['reply'])
-                    update.message.reply_text(reply_text, quote = True)
-                    save_reply(reaction['type'], reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                    return
+                    #replay on trigger message / on message trigger was replyed / just text to chat
+                    reply_to_message_id = update.message.message_id
+                    if 'replay_to_parent' in reaction:
+                        if update.message.reply_to_message:
+                            reply_to_message_id = update.message.reply_to_message.message_id
+                        else:
+                            return
+                    elif "no_replay" in reaction:
+                        reply_to_message_id = 0
+                    if reaction['reply_type'] == 'text':
+                        reply_text = random.choice(reaction['reply'])
+                        update.message.reply_text(reply_text, reply_to_message_id = reply_to_message_id)
+                        save_reply(reaction['type'], reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        return
+                    elif reaction['reply_type'] == 'video':
+                        fname = './' + random.choice(reaction['reply'])
+                        update.message.reply_video(video=open(fname, 'rb'), supports_streaming=True, reply_to_message_id = reply_to_message_id)
+                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        return
+                    elif reaction['reply_type'] == 'photo':
+                        fname = './' + random.choice(reaction['reply'])
+                        update.message.reply_photo(photo=open(fname, 'rb'), caption=reaction['caption'], reply_to_message_id = reply_to_message_id)
+                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        return
+                    elif reaction['reply_type'] == 'voice':
+                        fname = './' + random.choice(reaction['reply'])
+                        update.message.reply_voice(voice=open(fname, 'rb'), reply_to_message_id = reply_to_message_id)
+                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        return
+                    elif reaction['reply_type'] == 'sticker':
+                        sticker = random.choice(reaction['reply'])
+                        update.message.reply_sticker(sticker = sticker, reply_to_message_id = reply_to_message_id)
+                        save_reply(reaction['type'], sticker, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        return
 
     #Init chat replies
     last_inter = last_interaction(tg_chat_id)
@@ -72,7 +107,7 @@ def ontext(update, context):
                         return
         if last_inter['seconds'] < 1000000000 and last_inter['messages'] > config['replies_frequency']:
             for initreaction in config['initreaction']:
-                if initreaction['prob'] >= random.randrange(100):
+                if initreaction['prob'] >= random.randrange(100) or tg_chat_id == config['admin_chat_id']:
                     clear_text = re.sub("[^а-яА-Я- ]+", "", clear_text) #romove '?' '+'
                     for word in clear_text.split():
                         replay_word = find_plural(word);
@@ -81,14 +116,6 @@ def ontext(update, context):
                             update.message.reply_text(reply_text, quote = True)
                             save_reply(1, reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
                             return
-
-def admin(update, context):
-    for item in update.message.text.split():
-        item = item.lower()
-        replay_word = find_plural(item);
-        if replay_word != False:
-            chat_id = update.effective_chat.id
-            update.message.reply_text(replay_word.title() + ' для пидоров', quote = True)
 
 #Find plural form of word
 def find_plural(word):
@@ -144,8 +171,11 @@ def last_interaction(tg_chat_id, tg_from_id = 0, type = 0):
     return res
 
 if config['admin_chat_id'] > 0:
-    admin_handler = MessageHandler(Filters.chat(config['admin_chat_id']), admin)
+    admin_handler = MessageHandler(Filters.chat(config['admin_chat_id']) & Filters.text & (~Filters.command), ontext)
     dispatcher.add_handler(admin_handler)
 
 text_handler = MessageHandler(Filters.text & (~Filters.command), ontext)
 dispatcher.add_handler(text_handler)
+
+sticker_handler = MessageHandler(Filters.sticker, onsticker)
+dispatcher.add_handler(sticker_handler)

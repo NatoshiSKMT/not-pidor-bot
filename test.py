@@ -1,3 +1,4 @@
 #!/usr/bin/env python
-import random
-print(random.randrange(100))
+t = {"jopa": 'fff'}
+if t.has_key('jopva'): print(123)
+exit()
