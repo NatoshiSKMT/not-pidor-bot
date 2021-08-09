@@ -18,3 +18,6 @@ cp config.yml.example config.yml && nano config.yml
 ```
 python3 main.py
 ```
+
+# Reactions where
+end/full/begin/any
