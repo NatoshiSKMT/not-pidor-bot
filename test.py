@@ -1,4 +1,6 @@
 #!/usr/bin/env python
-t = {"jopa": 'fff'}
-if t.has_key('jopva'): print(123)
+from datetime import datetime
+ts = datetime.utcfromtimestamp(1585191485)
+
+print((datetime.today()-ts).total_seconds())
 exit()

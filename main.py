@@ -14,7 +14,7 @@ updater = Updater(token=config['token'])
 updater.start_polling()
 dispatcher = updater.dispatcher
 
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import random
 
@@ -23,6 +23,11 @@ def onsticker(update, context):
         update.message.reply_text(update.message.sticker.file_id)
 
 def ontext(update, context):
+    #ignore edited message
+    if not update.message: return
+    #ignore old
+    if (datetime.now(timezone.utc)-update.message.date).total_seconds() > 5: return
+
     tg_chat_id = update.message.chat.id
     tg_from_id = update.message.from_user.id
     if config['debug']: print(tg_chat_id, " > ", update.message.text);
