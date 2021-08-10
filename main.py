@@ -31,6 +31,9 @@ def ontext(update, context):
     tg_chat_id = update.message.chat.id
     tg_from_id = update.message.from_user.id
     if config['debug']: print(tg_chat_id, " > ", update.message.text);
+    #load interaction data before saving
+    last_user_inter = last_interaction(tg_chat_id, tg_from_id)
+    last_inter = last_interaction(tg_chat_id)
     #Saving original a message
     sql = "INSERT INTO `messages` (`text`, `tg_chat_id`, `tg_from_id`, `tg_message_id`, `tg_from_username`) VALUES (%s,%s,%s,%s,%s)"
     cursor.execute(sql, (update.message.text, tg_chat_id, tg_from_id, update.message.message_id, update.message.from_user.username))
@@ -41,8 +44,8 @@ def ontext(update, context):
 
     #Personal replies
     #check personal timeout
-    last_user_inter = last_interaction(tg_chat_id, tg_from_id)
     if last_user_inter['seconds'] > config['timeout_personal'] or tg_chat_id == config['admin_chat_id']:
+        if config['debug']: print('Personal reply...')
         for reaction in config['reactions']:
             if reaction['prob'] >= random.randrange(100) or tg_chat_id == config['admin_chat_id']:
                 do_reaction = False
@@ -70,6 +73,7 @@ def ontext(update, context):
                         if update.message.reply_to_message:
                             reply_to_message_id = update.message.reply_to_message.message_id
                         else:
+                            if config['debug']: print('No parent message. replay_to_parent')
                             return
                     elif "no_replay" in reaction:
                         reply_to_message_id = 0
@@ -77,31 +81,38 @@ def ontext(update, context):
                         reply_text = random.choice(reaction['reply'])
                         update.message.reply_text(reply_text, reply_to_message_id = reply_to_message_id)
                         save_reply(reaction['type'], reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        if config['debug']: print('REPLY: ', reply_text)
                         return
                     elif reaction['reply_type'] == 'video':
                         fname = './' + random.choice(reaction['reply'])
                         update.message.reply_video(video=open(fname, 'rb'), supports_streaming=True, reply_to_message_id = reply_to_message_id)
                         save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        if config['debug']: print('REPLY: ', fname)
                         return
                     elif reaction['reply_type'] == 'photo':
                         fname = './' + random.choice(reaction['reply'])
                         update.message.reply_photo(photo=open(fname, 'rb'), caption=reaction['caption'], reply_to_message_id = reply_to_message_id)
                         save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        if config['debug']: print('REPLY: ', fname)
                         return
                     elif reaction['reply_type'] == 'voice':
                         fname = './' + random.choice(reaction['reply'])
                         update.message.reply_voice(voice=open(fname, 'rb'), reply_to_message_id = reply_to_message_id)
                         save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        if config['debug']: print('REPLY: ', fname)
                         return
                     elif reaction['reply_type'] == 'sticker':
                         sticker = random.choice(reaction['reply'])
                         update.message.reply_sticker(sticker = sticker, reply_to_message_id = reply_to_message_id)
                         save_reply(reaction['type'], sticker, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                        if config['debug']: print('REPLY: ', sticker)
                         return
+    elif config['debug']: print("Personal replies...", last_user_inter)
 
     #Init chat replies
-    last_inter = last_interaction(tg_chat_id)
+    #check chat timeout
     if last_inter['seconds'] > config['timeout_chat']:
+        if config['debug']: print('Chat reply...')
         #never use this chat
         if(last_inter['seconds'] == 1000000000):
             sql = "SELECT COUNT(*) FROM `messages` WHERE `tg_chat_id` = %s"
@@ -109,8 +120,9 @@ def ontext(update, context):
                 records = cursor.fetchall()
                 for row in records:
                     if row[0] < config['first_message_wait']:
+                        if config['debug']: print('first_message_wait timeout')
                         return
-        if last_inter['seconds'] < 1000000000 and last_inter['messages'] > config['replies_frequency']:
+        if last_inter['seconds'] < 1000000000 and (last_inter['messages'] > config['replies_frequency'] or last_inter['messages'] < 0):
             for initreaction in config['initreaction']:
                 if initreaction['prob'] >= random.randrange(100) or tg_chat_id == config['admin_chat_id']:
                     clear_text = re.sub("[^а-яА-Я- ]+", "", clear_text) #romove '?' '+'
@@ -120,8 +132,12 @@ def ontext(update, context):
                             reply_text = replay_word.title() + ' ' + initreaction['text'];
                             update.message.reply_text(reply_text, quote = True)
                             save_reply(1, reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
+                            if config['debug']: print('REPLY: ', reply_text)
                             return
-
+                elif config['debug']: print('probably fail for', initreaction)
+        elif config['debug']: print('waiting for a chat timeout 2...', last_inter)
+    elif config['debug']: print('waiting for a chat timeout 1...', last_inter)
+    if config['debug']: print('No reply found');
 #Find plural form of word
 def find_plural(word):
     plural = False
