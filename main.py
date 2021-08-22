@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 
 # Set up the logger
 logging.basicConfig(
-    level=logging.INFO,
+    # level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -50,15 +51,6 @@ else:
     logger.info("Bot is running")
 
 
-class User():
-    """Class for operate with telegram users."""
-    def __init__(self, tg_user_id):
-        super(Chat, self).__init__()
-        self.tg_user_id = tg_user_id
-        self.last_reaction_date = datetime.now(timezone.utc)
-        self.last_reaction = None
-
-
 class Chat():
     """Class for operate with telegram chats."""
     def __init__(self, tg_chat_id):
@@ -72,12 +64,35 @@ class Chat():
         if self.last_reply is None:
             self.last_reply = {}
             self.last_reply['date'] = datetime.now(timezone.utc)
+            self.last_reply['tg_from_id'] = 0
             logger.debug("No replies in this chat")
+        else:
+            self.msg_after_reply = self.msg_count(self.last_reply['message_id'])
+
+    def save_reply(self, type, text, tg_chat_id, tg_from_id, tg_message_id):
+        sql = "INSERT INTO `replies` (`type`, `message_id`, `text`, `tg_chat_id`, `tg_from_id`, tg_message_id) VALUES (%s,%s,%s,%s,%s,%s)"
+        cursor.execute(sql, (
+            type, self.last_message['id'], text, self.tg_chat_id,
+            tg_from_id, tg_message_id)
+        )
+        db.commit()
+        self.last_reply['message_id'] = self.last_message['id']
+        self.last_reply['type'] = type
+        self.last_reply['tg_from_id'] = tg_from_id
+        self.last_reply['date'] = datetime.now(timezone.utc)
+        self.msg_after_reply = 0
 
     def get_last_reply(self):
         sql = """
-            SELECT * FROM `replies`
-            WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
+            SELECT
+                `message_id`,
+                `type`,
+                `tg_from_id`,
+                CONVERT_TZ(`date`, @@session.time_zone, '+00:00') as date
+            FROM `replies`
+            WHERE
+                `tg_chat_id` = %s
+            ORDER BY `id` DESC LIMIT 1
         """
         cursor.execute(sql, (self.tg_chat_id,))
 
@@ -86,54 +101,6 @@ class Chat():
             return row
         else:
             return None
-
-    def get_last_message(self):
-        sql = """
-            SELECT * FROM `messages`
-            WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
-        """
-        cursor.execute(sql, (self.tg_chat_id,))
-
-        row = cursor.fetchone()
-        if row is not None:
-            return row
-        else:
-            return None
-
-    def msg_count(self, message_id):
-        sql = """
-            SELECT COUNT(*) as `count` FROM `messages`
-            WHERE `tg_chat_id` = %s AND `id` > %s
-        """
-        cursor.execute(sql, (self.tg_chat_id, message_id,))
-        row = cursor.fetchone()
-        if row is not None:
-            return row['count']
-        else:
-            return 0
-
-    def msg_after_r(self):
-        return self.msg_after_reply
-
-    def sec_after_r(self):
-        date = self.last_reply['date'].replace(tzinfo=timezone.utc)
-        return round((datetime.now(timezone.utc) - date).total_seconds())
-
-    def seconds_after_reply(self, message_id):
-        sql = """SELECT TIMESTAMPDIFF(SECOND,date,CURRENT_TIMESTAMP) as diff, type
-                 FROM `replies`
-                 WHERE
-                    tg_chat_id = %s
-                    AND message_id = %s
-                 ORDER BY `id` DESC LIMIT 1"""
-        cursor.execute(sql, (self.tg_chat_id, message_id,))
-        row = cursor.fetchone()
-        if row is not None:
-            self.reply_type = row[1]
-            return row[0]
-        else:
-            logger.warning("Given inexistent message_id")
-            return -1
 
     def save_message(self, text, tg_from_id, tg_message_id, username):
         sql = """
@@ -154,21 +121,46 @@ class Chat():
         logger.debug(f"Message saved to BD id: {self.last_message['id']}")
         self.msg_after_reply += 1
 
-    def save_reply(self, type, text, tg_chat_id, tg_from_id, tg_message_id):
-        sql = "INSERT INTO `replies` (`type`, `message_id`, `text`, `tg_chat_id`, `tg_from_id`, tg_message_id) VALUES (%s,%s,%s,%s,%s,%s)"
-        cursor.execute(sql, (
-            type, self.last_message['id'], text, self.tg_chat_id,
-            tg_from_id, tg_message_id)
-        )
-        db.commit()
-        self.last_reply['date'] = datetime.now(timezone.utc)
+    def get_last_message(self):
+        sql = """
+            SELECT * FROM `messages`
+            WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
+        """
+        cursor.execute(sql, (self.tg_chat_id,))
+
+        row = cursor.fetchone()
+        if row is not None:
+            return row
+        else:
+            return None
+
+    def msg_count(self, message_id):
+        sql = """
+            SELECT COUNT(*) as `count` FROM `messages`
+            WHERE
+                `tg_chat_id` = %s
+                AND `id` > %s
+        """
+        cursor.execute(sql, (self.tg_chat_id, message_id,))
+        row = cursor.fetchone()
+        if row is not None:
+            return row['count']
+        else:
+            return 0
+
+    def msg_after_r(self):
+        return self.msg_after_reply
+
+    def sec_after_r(self):
+        date = self.last_reply['date'].replace(tzinfo=timezone.utc)
+        return round((datetime.now(timezone.utc) - date).total_seconds())
 
 
 def onsticker(update, context):
     '''
-    Receive a sticker, returns telegram file_id
+    Receive a sticker, reply telegram file_id
     '''
-    # ADMIN: echo trlegram file_id for sticker
+    # ADMIN only:
     if update.message.chat.id == config['admin_chat_id']:
         update.message.reply_text(update.message.sticker.file_id)
         logger.info(f"ADMIN onsticker: {update.message.sticker.file_id}")
@@ -176,7 +168,7 @@ def onsticker(update, context):
 
 def ontext(update, context):
     """
-    Processing all reactions on text messages
+    Processing all patterns on text messages
     """
     # Ignore edited message
     if not update.message:
@@ -190,7 +182,7 @@ def ontext(update, context):
 
     tg_chat_id = update.message.chat.id
     tg_from_id = update.message.from_user.id
-    logger.debug("{}({}), {}({}): {}".format(
+    logger.info("{}({}), {}({}): {}".format(
         update.message.chat.title, tg_chat_id,
         update.message.from_user.username, tg_from_id, update.message.text
     ))
@@ -201,20 +193,125 @@ def ontext(update, context):
 
     # Saving original a message
     current_chat.save_message(
-        update.message.text, tg_from_id,
-        update.message.message_id,
+        update.message.text, tg_from_id, update.message.message_id,
         update.message.from_user.username
     )
 
-    print(f"msg: {current_chat.msg_after_r()}  sec: {current_chat.sec_after_r()}")
-
     clear_text = re.sub("[^а-яА-Я- ?+]+", "", update.message.text).lower()
 
-    # Сhat replies on any text. config['reaction']
-    # TODO: Check chat timeouts
+    # Reply on patterns config['patterns']
+    logger.debug('Reply on patterns...')
+    # Check personal timeout
+    personal_timer = 0
+    personal_timer_type = 0
+    if current_chat.last_reply['tg_from_id'] == tg_from_id:
+        personal_timer = config['timeout_personal'] - current_chat.sec_after_r()
+        if personal_timer < config['timeout_personal']:
+            personal_timer_type = current_chat.last_reply['type']
 
-    # if config['timeout_chat'] & config['replies_frequency']
+    logger.debug(f"Сhat timers: {current_chat.msg_after_r()} msg,  {current_chat.sec_after_r()} sec")
+
+    for reaction in config['patterns']:
+        if personal_timer_type == reaction['type'] and personal_timer > 0:
+            logger.debug(f"Personal timeout {config['timeout_personal'] - personal_timer} s.")
+            continue
+
     for reaction in config['reaction']:
+        # Saving throw via reaction['prob']
+        if tg_chat_id == config['admin_chat_id']:
+            reaction['prob'] = 100
+        if (reaction['prob'] * 100 < random.randrange(10000)):
+            logger.debug(f"Saving throw: {reaction['prob']}%")
+            logger.debug(reaction)
+            continue
+
+        # Where is the pattern?
+        do_reaction = False
+        if reaction['where'] == 'end':
+            for pattern in reaction['pattern']:
+                if clear_text.endswith(pattern):
+                    do_reaction = True
+        elif reaction['where'] == 'full':
+            for pattern in reaction['pattern']:
+                if clear_text == pattern:
+                    do_reaction = True
+        elif reaction['where'] == 'begin':
+            for pattern in reaction['pattern']:
+                if clear_text.find(pattern) == 0:
+                    do_reaction = True
+        elif reaction['where'] == 'any':
+            for pattern in reaction['pattern']:
+                if clear_text.find(pattern) >= 0:
+                    do_reaction = True
+
+        if do_reaction is True:
+            # Replay / replay on replay / just text - replay_to_parent
+            reply_to_message_id = update.message.message_id
+            if 'replay_to_parent' in reaction:
+                if update.message.reply_to_message:
+                    reply_to_message_id = update.message.reply_to_message.message_id
+                else:
+                    logger.debug("Parent message required.")
+                    continue
+            elif "no_replay" in reaction:
+                reply_to_message_id = 0
+            # Replying via reply_type
+            if reaction['reply_type'] == 'text':
+                reply_text = random.choice(reaction['reply'])
+                update.message.reply_text(reply_text, reply_to_message_id=reply_to_message_id)
+                current_chat.save_reply(
+                    reaction['type'], reply_text,
+                    tg_chat_id, tg_from_id, update.message.message_id)
+                logger.info(f"REPLY: {reply_text}")
+                return
+            elif reaction['reply_type'] == 'video':
+                fname = './' + random.choice(reaction['reply'])
+                update.message.reply_video(video=open(fname, 'rb'), supports_streaming=True, reply_to_message_id=reply_to_message_id)
+                current_chat.save_reply(
+                    reaction['type'], fname,
+                    tg_chat_id, tg_from_id, update.message.message_id)
+                logger.info(f"REPLY: {fname}")
+                return
+            elif reaction['reply_type'] == 'photo':
+                fname = './' + random.choice(reaction['reply'])
+                update.message.reply_photo(photo=open(fname, 'rb'), caption=reaction['caption'], reply_to_message_id=reply_to_message_id)
+                current_chat.save_reply(
+                    reaction['type'], fname,
+                    tg_chat_id, tg_from_id, update.message.message_id)
+                logger.info(f"REPLY: {fname}")
+                return
+            elif reaction['reply_type'] == 'voice':
+                fname = './' + random.choice(reaction['reply'])
+                update.message.reply_voice(voice=open(fname, 'rb'), reply_to_message_id=reply_to_message_id)
+                current_chat.save_reply(
+                    reaction['type'], fname,
+                    tg_chat_id, tg_from_id, update.message.message_id)
+                logger.info(f"REPLY: {fname}")
+                return
+            elif reaction['reply_type'] == 'sticker':
+                sticker = random.choice(reaction['reply'])
+                update.message.reply_sticker(sticker=sticker, reply_to_message_id=reply_to_message_id)
+                current_chat.save_reply(
+                    reaction['type'], sticker,
+                    tg_chat_id, tg_from_id, update.message.message_id)
+                logger.info(f"REPLY: {sticker}")
+                return
+
+    logger.debug('Personal reply pattern is not found')
+
+    # Сhat reaction on any text. config['reactions']
+    logger.debug('Сhat reaction...')
+
+    # Check chat timeouts
+    if current_chat.sec_after_r() < config['timeout_chat']:
+        logger.debug(f"Chat timeout {config['timeout_chat'] - current_chat.sec_after_r()} s.")
+        return
+    chat_timer = current_chat.msg_after_r()
+    if chat_timer < config['replies_frequency']:
+        logger.debug(f"Chat timeout {config['replies_frequency'] - chat_timer} msgs.")
+        return
+
+    for reaction in config['reactions']:
         # Saving throw via reaction['prob']
         if tg_chat_id == config['admin_chat_id']:
             reaction['prob'] = 100
@@ -225,206 +322,65 @@ def ontext(update, context):
         # Try to genegate answer
         clear_text = re.sub("[^а-яА-Я- ]+", "", clear_text)  # del '?' '+'
         for word in clear_text.split():
-            # TODO: ::plural:: and more
-            replay_word = find_plural(word)
-            if replay_word is not None:
-                reply_text = reaction['text'].replace(
-                    ".мн.", replay_word.title()
-                )
-                update.message.reply_text(reply_text, quote=True)
-                current_chat.save_reply(
-                    1, reply_text,
-                    tg_chat_id, tg_from_id, update.message.message_id)
-                logger.info(f"REPLY: {reply_text}")
-                return
+            # Ignore short words
+            if len(word) <= 3:
+                continue
+
+            word_forms = get_word(word)
+            if word_forms is None:
+                continue
+
+            reply_text = reaction['text']
+            for word_form in word_forms:
+                # Plural form
+                if word_form['plural'] == 1:
+                    reply_text = reply_text.replace(
+                        "..множ..", word_form['word']
+                    )
+                # Case forms
+                else:
+                    reply_text = reply_text.replace(
+                        f"..{word_form['wcase']}..", word_form['word']
+                    )
+            if reply_text.find("..") >= 0:
+                logger.warning("Fail to replace all ..[form]..", reply_text)
+                continue
+            reply_text = reply_text[0].upper() + reply_text[1:]
+            update.message.reply_text(reply_text, quote=True)
+            current_chat.save_reply(
+                1, reply_text,
+                tg_chat_id, tg_from_id, update.message.message_id)
+            logger.info(f"REPLY: {reply_text}")
+            return
+    logger.debug('No chat reaction')
 
 
-    #logger.debug(f"Chat timeout 2. Waiting for {config['timeout_chat'] - last_inter['seconds']} s.")
-    #else: logger.debug(f"Chat timeout 1. Waiting for {config['timeout_chat'] - last_inter['seconds']} s.")
-
-
-
-    # if row[0] < config['first_message_wait']:
-    #        logger.debug('Waiting for first_message_wait timeout')
-    #        return
-
-    '''
-    # Personal replies on patterns. config['reactions']
-    if current_chat.personal_timeout(tg_from_id):
-
-
-
-    # check personal timeout
-    if last_user_inter['seconds'] > config['timeout_personal'] or tg_chat_id == config['admin_chat_id']:
-        logger.debug("Personal reply...")
-        for reaction in config['reactions']:
-            if reaction['prob'] * 100 >= random.randrange(10000) or tg_chat_id == config['admin_chat_id']:
-                do_reaction = False
-                #whe is the pattern
-                if reaction['where'] == 'end':
-                    for pattern in reaction['pattern']:
-                        if clear_text.endswith(pattern):
-                            do_reaction = True
-                elif reaction['where'] == 'full':
-                    for pattern in reaction['pattern']:
-                        if clear_text == pattern:
-                            do_reaction = True
-                elif reaction['where'] == 'begin':
-                    for pattern in reaction['pattern']:
-                        if clear_text.find(pattern) == 0:
-                            do_reaction = True
-                elif reaction['where'] == 'any':
-                    for pattern in reaction['pattern']:
-                        if clear_text.find(pattern) >= 0:
-                            do_reaction = True
-                if do_reaction:
-                    #replay on trigger message / on message trigger was replyed / just text to chat
-                    reply_to_message_id = update.message.message_id
-                    if 'replay_to_parent' in reaction:
-                        if update.message.reply_to_message:
-                            reply_to_message_id = update.message.reply_to_message.message_id
-                        else:
-                            logger.debug("No parent message. replay_to_parent")
-                            return
-                    elif "no_replay" in reaction:
-                        reply_to_message_id = 0
-                    if reaction['reply_type'] == 'text':
-                        reply_text = random.choice(reaction['reply'])
-                        update.message.reply_text(reply_text, reply_to_message_id = reply_to_message_id)
-                        save_reply(reaction['type'], reply_text, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                        logger.info(f"REPLY: {reply_text}")
-                        return
-                    elif reaction['reply_type'] == 'video':
-                        fname = './' + random.choice(reaction['reply'])
-                        update.message.reply_video(video=open(fname, 'rb'), supports_streaming=True, reply_to_message_id = reply_to_message_id)
-                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                        logger.info(f"REPLY: {fname}")
-                        return
-                    elif reaction['reply_type'] == 'photo':
-                        fname = './' + random.choice(reaction['reply'])
-                        update.message.reply_photo(photo=open(fname, 'rb'), caption=reaction['caption'], reply_to_message_id = reply_to_message_id)
-                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                        logger.info(f"REPLY: {fname}")
-                        return
-                    elif reaction['reply_type'] == 'voice':
-                        fname = './' + random.choice(reaction['reply'])
-                        update.message.reply_voice(voice=open(fname, 'rb'), reply_to_message_id = reply_to_message_id)
-                        save_reply(reaction['type'], fname, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                        logger.info(f"REPLY: {fname}")
-                        return
-                    elif reaction['reply_type'] == 'sticker':
-                        sticker = random.choice(reaction['reply'])
-                        update.message.reply_sticker(sticker = sticker, reply_to_message_id = reply_to_message_id)
-                        save_reply(reaction['type'], sticker, message_id, tg_chat_id, tg_from_id, update.message.message_id);
-                        logger.info(f"REPLY: {sticker}")
-                        return
-    else:
-        logger.debug(f"Personal timeout. Waiting for {config['timeout_personal'] - last_user_inter['seconds']} s.")
-
-    logger.debug('No reply found');
-    '''
-
-
-# Find plural form of word
-def find_plural(word):
-    plural = None
+def get_word(word):
     if len(word) <= 3:
-        return plural
-    startTime = datetime.now()
+        return None
+
     sql = "SELECT * FROM `nouns_morf` WHERE `word` = %s LIMIT 1"
-    for result in cursor.execute(sql, (word,), multi=True):
-        records = cursor.fetchall()
-        for row in records:
-            wordcode = 0
-            if row['code_parent'] == 0:
-                wordcode = row['code']  # нашли сразу именительный падеж
-            else:
-                wordcode = row['code_parent']
-            sql = """
-                SELECT * FROM `nouns_morf`
-                WHERE
-                    (`code_parent` = %s OR `code` = %s)
-                    AND `plural` = 1 AND `wcase` = 'им'
-                LIMIT 1
-            """
-            for result in cursor.execute(sql, (wordcode, wordcode,), multi=True):
-                records = cursor.fetchall()
-                for row in records:
-                    plural = row['word']
-    logger.info(f"Plural form: {word} is {plural} {datetime.now() - startTime}")
-    return plural
+    cursor.execute(sql, (word,))
 
+    founded_form = cursor.fetchone()
+    if founded_form is None:
+        return None  # word not found
 
-def last_replay_to_user(tg_chat_id, tg_from_id):
-    res = {'seconds' : 0, 'type' : 0}
-    sql = """SELECT TIMESTAMPDIFF(SECOND,date,CURRENT_TIMESTAMP) as diff, type
-             FROM `replies`
-             WHERE `tg_chat_id` = %s AND `tg_from_id` = %s
-             ORDER BY `id` DESC LIMIT 1"""
-    params = (tg_chat_id,tg_from_id,)
-    for result in cursor.execute(sql, params, multi=True):
-        records = cursor.fetchall()
-        for row in records:
-            res['seconds'] = row[0]
-            res['type'] = row[1]
-    return res
+    if founded_form['code_parent'] == 0:
+        wordcode = founded_form['code']  # subjective case
+    else:
+        wordcode = founded_form['code_parent']
 
-def last_replay_in_chat(tg_chat_id):
-    res = {'seconds' : 0, 'messages' : 0}
-    sql = """SELECT TIMESTAMPDIFF(SECOND,date,CURRENT_TIMESTAMP) as diff, message_id
-             FROM `replies`
-             WHERE `tg_chat_id` = %s
-             ORDER BY `id` DESC LIMIT 1"""
-    params = (tg_chat_id,)
-    for result in cursor.execute(sql, params, multi=True):
-        records = cursor.fetchall()
-        for row in records:
-            res['seconds'] = row[0]
-            last_reply_tg_id = row[1]
-            print(last_reply_tg_id)
-            #messages count after last reply
-            sql2 = "SELECT `tg_message_id` FROM `messages` WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1"
-            params2 = (tg_chat_id,)
-            for result2 in cursor.execute(sql2, params2, multi=True):
-                records2 = cursor.fetchall()
-                for row2 in records2:
-                    print(row2[0])
-                    res['messages'] = row2[0] - last_reply_tg_id
-            sql = "SELECT COUNT(*) FROM `messages` WHERE `tg_chat_id` = %s"
-            for result in cursor.execute(sql, (tg_chat_id,), multi=True):
-                records = cursor.fetchall()
-                for row in records:
-                    if row[0] < config['first_message_wait']:
-                        pass
-    return res
-
-# Return seconds till last interaction
-def last_interaction(tg_chat_id, tg_from_id = 0):
-    res = {'seconds' : 1000000000, 'messages' : 1000000000}
-    #time
-    sql = "SELECT TIMESTAMPDIFF(SECOND,date,CURRENT_TIMESTAMP) as diff, tg_message_id FROM `replies` WHERE `tg_chat_id` = %s"
-    params = (tg_chat_id,)
-    if tg_from_id !=0 :
-        sql += ' AND `tg_from_id` = %s'
-        params += (tg_from_id,)
-    if type !=0 :
-        sql += ' AND `type` = %s'
-        params += (type,)
-    sql += ' ORDER BY `id` DESC LIMIT 1'
-    for result in cursor.execute(sql, params, multi=True):
-        records = cursor.fetchall()
-        for row in records:
-            res['seconds'] = row[0]
-            last_reply_tg_id = row[1]
-            #messages count
-            sql2 = "SELECT `tg_message_id` FROM `messages` WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1"
-            params2 = (tg_chat_id,)
-            for result2 in cursor.execute(sql2, params2, multi=True):
-                records2 = cursor.fetchall()
-                for row2 in records2:
-                    res['messages'] = row2[0] - last_reply_tg_id
-    print(res)
-    return res
+    sql = """
+        SELECT * FROM `nouns_morf`
+        WHERE
+            `code_parent` = %s
+            OR `code` = %s
+    """
+    for result in cursor.execute(sql, (wordcode, wordcode,), multi=True):
+        result = cursor.fetchall()
+        return result
+    return None
 
 
 Chats = {}
