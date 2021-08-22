@@ -3,3 +3,291 @@ user: MySQL_user_name
 database: MySQL_database
 password: MySQL_password
 token: Telegrab_bot_token
+admin_chat_id: 0
+
+timeout_chat: 5000 #seconds
+replies_frequency: 60 #messages required before next reply
+timeout_personal: 60 #seconds
+
+# Reactions to a random noun for which the bot was able to find a word form
+reactions:
+  - text: ..множ.. не для пидоров
+    prob: 0.1
+  - text: Улиточка моя, ..им.. ..дат.. рознь, но в целом ..множ.. для пидоров
+    prob: 0.3
+  - text: ..множ.. для пидоров, улиточка моя. Но если подумать, то ..им.. ..дат.. рознь, конечно
+    prob: 0.3
+  - text: ..множ.. для пидоров
+    prob: 5
+
+# Reactions to specific patterns
+patterns:
+  - name: pidorbot-forfagot
+    pattern:
+      - бот для пидоров
+      - бот для пидаров
+      - бот для пидров
+      - бот дляпидров
+    prob: 100
+    reply:
+      - media/no.mp4
+    type: 9
+    reply_type: video
+    where: any
+  - name: agree
+    pattern:
+      - для пидоров
+      - для пидаров
+      - для пидров
+      - дляпидров
+    prob: 95
+    reply:
+      - +
+    type: 2
+    reply_type: text
+    where: end
+  - name: who-is-fagot
+    pattern:
+      - кто пидор?
+      - я пидор?
+    prob: 100
+    reply:
+      - media/cat.mp4
+    type: 17
+    reply_type: video
+    where: end
+  - name: google
+    pattern:
+      - что гугл говорит?
+      - чо гугл говорит?
+      - что гугл выдает?
+      - чо гугл выдает?
+    prob: 100
+    reply:
+      - Говорит, что ты пидор
+    type: 3
+    reply_type: text
+    where: end
+  - name: m-said-youre-fagot
+    pattern:
+      - что он сказал?
+      - что он там сказал?
+      - что он тогда сказал?
+    prob: 100
+    reply:
+      - Сказал, что ты пидор
+    type: 3
+    reply_type: text
+    where: end
+  - name: f-said-youre-fagot
+    pattern:
+      - что она сказала?
+      - что она там сказала?
+      - что она тогда сказала?
+    prob: 100
+    reply:
+      - Сказала, что ты пидор
+    type: 3
+    reply_type: text
+    where: end
+  - name: fortochka
+    pattern:
+      - душно стало
+      - ты душнила
+      - вы душнилы
+      - пиздец душнила
+      - пиздец душнилы
+    prob: 100
+    caption: Из форточки вдохни
+    reply:
+      - media/fort-1.jpg
+      - media/fort-2.jpg
+      - media/fort-3.jpg
+      - media/fort-4.jpg
+      - media/fort-5.jpg
+      - media/fort-6.jpg
+      - media/fort-7.jpg
+      - media/fort-8.jpg
+      - media/fort-9.jpg
+    type: 10
+    reply_type: photo
+    where: end
+  - name: excuse
+    pattern:
+      - бот извинись
+      - бот проси прощение
+      - бот проси прощения
+    prob: 100
+    reply:
+      - Не буду
+      - Не хочу
+      - Ой, всё
+      - Нет
+      - Рамзан простит
+      - Извенити
+    type: 5
+    reply_type: text
+    no_replay: True
+    where: full
+  - name: stupid-bot
+    pattern:
+      - бот тупой
+      - тупой бот
+      - бот глупый
+      - глупый бот
+    prob: 100
+    reply:
+      - Кожаные ублюдки
+    type: 6
+    reply_type: text
+    where: any
+  - name: oldy-igor
+    pattern:
+      - олды тут?
+    prob: 100
+    reply:
+      - Игорь, ты?
+    type: 7
+    reply_type: text
+    where: full
+  - name: love-anime
+    pattern:
+      - люблю аниме
+      - люблю анимэ
+      - обожаю анимэ
+      - обожаю анимэ
+    prob: 100
+    reply:
+      - media/kakava.jpg
+    type: 14
+    reply_type: photo
+    caption:
+    where: full
+  - name: ti-dushniy
+    pattern:
+      - пиздец ты душный
+      - ну ты и душнила
+    prob: 100
+    reply:
+      - media/dushnila.ogg
+    type: 12
+    reply_type: voice
+    replay_to_parent: True
+    where: full
+  - name: ti-ebanat
+    pattern:
+      - ты что ебанат?
+      - ты ебанат?
+    prob: 100
+    reply:
+      - media/ebanat.ogg
+    type: 12
+    reply_type: voice
+    replay_to_parent: True
+    where: full
+  - name: anime
+    pattern:
+      - аниме
+      - анимэ
+    prob: 100
+    reply:
+      - Почему воняет пердой?
+    type: 8
+    reply_type: text
+    no_replay: True
+    where: any
+  - name: games
+    pattern:
+      - сколько стоят игры?
+    prob: 100
+    reply:
+      - media/games.ogg
+    type: 11
+    reply_type: voice
+    where: full
+  - name: major
+    pattern:
+      - товарищ майор
+    prob: 100
+    reply:
+      - CAACAgUAAxkBAALOTGEQwzF0HFL3AAHm6fkCZREpF6j9qAACPwMAAlu_iVS6O2artqjnsiAE
+    type: 15
+    reply_type: sticker
+    no_replay: True
+    where: any
+  - name: bryansk
+    pattern:
+      - брянск север
+    prob: 100
+    reply:
+      - CAACAgUAAxkBAALOTmEQwzfXy8OtkWsHODOTnEj1QkDbAAJhAwACzFaBVBXEcQ0xqyfVIAQ
+    type: 16
+    reply_type: sticker
+    no_replay: True
+    where: any
+  - name: good
+    pattern:
+      - пидорбот хороший
+      - пидорбот клевый
+      - пидорбот жжот
+      - пидорбот охуенный
+    prob: 100
+    reply:
+      - media/good-1.mp4
+      - media/good-2.mp4
+      - media/good-3.mp4
+      - media/good-4.mp4
+      - media/good-5.mp4
+      - media/good-6.mp4
+      - media/good-7.mp4
+      - media/good-8.mp4
+      - media/good-9.mp4
+      - media/good-10.mp4
+      - media/good-11.mp4
+      - media/good-12.mp4
+      - media/good-13.mp4
+      - media/good-14.mp4
+    type: 18
+    reply_type: video
+    where: any
+  - name: jrat
+    pattern:
+      - пойду пожру
+      - пойдем пожрем
+      - пора пожрать
+      - пора бы пожрать
+      - жрать пора
+      - иди пожри
+    prob: 100
+    reply:
+      - media/jrat.ogg
+    type: 13
+    reply_type: voice
+    where: full
+  - name: plus
+    pattern:
+      - +
+      - ++
+      - +++
+      - ++++
+    prob: 1
+    reply:
+      - Плюсанул тебе защеку
+      - В анус себе плюсани
+    type: 2
+    reply_type: text
+    where: full
+  - name: no
+    pattern:
+      - нет
+      - неет
+      - нееет
+      - неееет
+      - нееееет
+    prob: 1
+    reply:
+      - Пидора ответ
+      - Ну ты знаешь, чей ответ
+    type: 4
+    reply_type: text
+    where: full
