@@ -216,7 +216,6 @@ def ontext(update, context):
             logger.debug(f"Personal timeout {config['timeout_personal'] - personal_timer} s.")
             continue
 
-    for reaction in config['reaction']:
         # Saving throw via reaction['prob']
         if tg_chat_id == config['admin_chat_id']:
             reaction['prob'] = 100
