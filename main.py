@@ -32,6 +32,8 @@ try:
         database=config['database'],
         password=config['password']
     )
+    db.reconnect(attempts=1000, delay=10)
+    db.ping(True)
     cursor = db.cursor(dictionary=True)
 except Exception:
     logger.exception("Database connection error")
