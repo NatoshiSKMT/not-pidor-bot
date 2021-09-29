@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 
 # Set up the logger
 logging.basicConfig(
-    # level=logging.INFO,
-    level=logging.DEBUG,
+    level=logging.INFO,
+    # level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -356,6 +356,15 @@ def ontext(update, context):
     logger.debug('No chat reaction')
 
 
+def onjoin(update, context):
+    # TODO: Move to config
+    sticker = "CAACAgUAAxkBAALRYmFMKSIKA6MuLhAJ2l05uZi-v5PqAAL5BAACAethVuvtZALvfe75IQQ"
+    # logger.info(update.message.new_chat_members[0].id)
+    if update.message.new_chat_members[0].id == 982289358:  # лось
+        update.message.reply_sticker(sticker=sticker)
+        logger.info(f"REPLY: {sticker}")
+
+
 def get_word(word):
     if len(word) <= 3:
         return None
@@ -400,6 +409,9 @@ def main():
 
     sticker_handler = MessageHandler(Filters.sticker, onsticker)
     dispatcher.add_handler(sticker_handler)
+
+    join_handler = MessageHandler(Filters.status_update.new_chat_members, onjoin)
+    dispatcher.add_handler(join_handler)
 
 
 if __name__ == '__main__':
