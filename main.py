@@ -110,6 +110,7 @@ class Chat():
                 `tg_from_username`)
             VALUES (%s,%s,%s,%s,%s)
         """
+        db.ping(reconnect=True)
         cursor.execute(
             sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username)
         )
@@ -127,6 +128,7 @@ class Chat():
             SELECT * FROM `messages`
             WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
         """
+        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id,))
 
         row = cursor.fetchone()
