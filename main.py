@@ -24,21 +24,36 @@ except Exception:
 else:
     logger.info("Configuration loaded from config.yml")
 
-# Connect to database
-try:
-    db = mysql.connector.connect(
-        host=config['host'],
-        user=config['user'],
-        database=config['database'],
-        password=config['password']
-    )
-    db.ping(reconnect=True, attempts=1000, delay=2)
-    cursor = db.cursor(dictionary=True)
-except Exception:
-    logger.exception("Database connection error")
-    exit()
-else:
-    logger.info("Database connected")
+
+class DB:
+    """Connect to database"""
+    def connect(self):
+        try:
+            self.conn = mysql.connector.connect(
+                host=config['host'],
+                user=config['user'],
+                database=config['database'],
+                password=config['password']
+            )
+        except Exception:
+            logger.exception("Database connection error")
+            exit()
+        else:
+            logger.info("Database connected")
+
+    def query(self, sql, *args, **kwargs):
+        try:
+            cursor = self.conn.cursor(dictionary=True)
+            cursor.execute(sql, *args, **kwargs)
+        except Exception:
+            self.connect()
+            cursor = self.conn.cursor(dictionary=True)
+            cursor.execute(sql, *args, **kwargs)
+        return cursor
+
+
+db = DB()
+
 
 # Run telegram bot
 try:
@@ -72,11 +87,15 @@ class Chat():
 
     def save_reply(self, type, text, tg_chat_id, tg_from_id, tg_message_id):
         sql = "INSERT INTO `replies` (`type`, `message_id`, `text`, `tg_chat_id`, `tg_from_id`, tg_message_id) VALUES (%s,%s,%s,%s,%s,%s)"
-        cursor.execute(sql, (
-            type, self.last_message['id'], text, self.tg_chat_id,
-            tg_from_id, tg_message_id)
+
+        db.query(
+            sql,
+            (
+                type, self.last_message['id'], text, self.tg_chat_id,
+                tg_from_id, tg_message_id
+            )
         )
-        db.commit()
+
         self.last_reply['message_id'] = self.last_message['id']
         self.last_reply['type'] = type
         self.last_reply['tg_from_id'] = tg_from_id
@@ -95,10 +114,8 @@ class Chat():
                 `tg_chat_id` = %s
             ORDER BY `id` DESC LIMIT 1
         """
-        db.ping(reconnect=True)
-        cursor.execute(sql, (self.tg_chat_id,))
 
-        row = cursor.fetchone()
+        row = db.query(sql, (self.tg_chat_id,)).fetchone()
         if row is not None:
             return row
         else:
@@ -111,11 +128,8 @@ class Chat():
                 `tg_from_username`)
             VALUES (%s,%s,%s,%s,%s)
         """
-        db.ping(reconnect=True)
-        cursor.execute(
-            sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username)
-        )
-        db.commit()
+        cursor = db.query(sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username))
+
         self.last_message['id'] = cursor.lastrowid
         self.last_message['text'] = text
         self.last_message['tg_from_id'] = tg_from_id
@@ -129,10 +143,7 @@ class Chat():
             SELECT * FROM `messages`
             WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
         """
-        db.ping(reconnect=True)
-        cursor.execute(sql, (self.tg_chat_id,))
-
-        row = cursor.fetchone()
+        row = db.query(sql, (self.tg_chat_id,)).fetchone()
         if row is not None:
             return row
         else:
@@ -145,9 +156,7 @@ class Chat():
                 `tg_chat_id` = %s
                 AND `id` > %s
         """
-        db.ping(reconnect=True)
-        cursor.execute(sql, (self.tg_chat_id, message_id,))
-        row = cursor.fetchone()
+        row = db.query(sql, (self.tg_chat_id, message_id,)).fetchone()
         if row is not None:
             return row['count']
         else:
@@ -373,10 +382,8 @@ def get_word(word):
         return None
 
     sql = "SELECT * FROM `nouns_morf` WHERE `word` = %s LIMIT 1"
-    db.ping(reconnect=True)
-    cursor.execute(sql, (word,))
+    founded_form = db.query(sql, (word,)).fetchone()
 
-    founded_form = cursor.fetchone()
     if founded_form is None:
         return None  # word not found
 
@@ -391,11 +398,7 @@ def get_word(word):
             `code_parent` = %s
             OR `code` = %s
     """
-    db.ping(reconnect=True)
-    for result in cursor.execute(sql, (wordcode, wordcode,), multi=True):
-        result = cursor.fetchall()
-        return result
-    return None
+    return db.query(sql, (wordcode, wordcode,)).fetchall()
 
 
 Chats = {}
