@@ -95,6 +95,7 @@ class Chat():
                 `tg_chat_id` = %s
             ORDER BY `id` DESC LIMIT 1
         """
+        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id,))
 
         row = cursor.fetchone()
@@ -144,6 +145,7 @@ class Chat():
                 `tg_chat_id` = %s
                 AND `id` > %s
         """
+        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id, message_id,))
         row = cursor.fetchone()
         if row is not None:
@@ -371,6 +373,7 @@ def get_word(word):
         return None
 
     sql = "SELECT * FROM `nouns_morf` WHERE `word` = %s LIMIT 1"
+    db.ping(reconnect=True)
     cursor.execute(sql, (word,))
 
     founded_form = cursor.fetchone()
@@ -388,6 +391,7 @@ def get_word(word):
             `code_parent` = %s
             OR `code` = %s
     """
+    db.ping(reconnect=True)
     for result in cursor.execute(sql, (wordcode, wordcode,), multi=True):
         result = cursor.fetchall()
         return result
