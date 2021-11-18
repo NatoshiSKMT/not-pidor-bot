@@ -130,7 +130,6 @@ class Chat():
         self.last_message['tg_from_id'] = tg_from_id
         self.last_message['tg_message_id'] = tg_message_id
         self.last_message['username'] = username
-        logger.debug(f"Message saved to BD id: {self.last_message['id']}")
         self.msg_after_reply += 1
 
     def get_last_message(self):
