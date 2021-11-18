@@ -125,7 +125,7 @@ class Chat():
             sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username)
         )
         db.commit()
-        self.last_message['id'] = cursor.lastrowid if cursor.lastrowid else 0
+        self.last_message['id'] = cursor.lastrowid
         self.last_message['text'] = text
         self.last_message['tg_from_id'] = tg_from_id
         self.last_message['tg_message_id'] = tg_message_id
@@ -144,7 +144,7 @@ class Chat():
         if row is not None:
             return row
         else:
-            return None
+            return {}
 
     def msg_count(self, message_id):
         sql = """
@@ -200,8 +200,10 @@ def ontext(update, context):
     ))
 
     if tg_chat_id not in Chats:
-        Chats[tg_chat_id] = Chat(tg_chat_id)
-    current_chat = Chats[tg_chat_id]
+        current_chat = Chat(tg_chat_id)
+        Chats[tg_chat_id] = current_chat
+    else:
+        current_chat = Chats[tg_chat_id]
 
     # Saving original a message
     current_chat.save_message(
