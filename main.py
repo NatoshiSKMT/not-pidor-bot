@@ -32,13 +32,24 @@ try:
         database=config['database'],
         password=config['password']
     )
-    db.ping(reconnect=True, attempts=1000, delay=2)
     cursor = db.cursor(dictionary=True)
 except Exception:
-    logger.exception("Database connection error")
-    exit()
+    logger.exception("Database connection error 1")
+    try:
+        db = mysql.connector.connect(
+            host=config['host'],
+            user=config['user'],
+            database=config['database'],
+            password=config['password']
+        )
+        cursor = db.cursor(dictionary=True)
+    except Exception:
+        logger.exception("Database connection error 2")
+        exit()
+    else:
+        logger.info("Database connected 2")
 else:
-    logger.info("Database connected")
+    logger.info("Database connected 1")
 
 # Run telegram bot
 try:
@@ -95,7 +106,6 @@ class Chat():
                 `tg_chat_id` = %s
             ORDER BY `id` DESC LIMIT 1
         """
-        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id,))
 
         row = cursor.fetchone()
@@ -111,7 +121,6 @@ class Chat():
                 `tg_from_username`)
             VALUES (%s,%s,%s,%s,%s)
         """
-        db.ping(reconnect=True)
         cursor.execute(
             sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username)
         )
@@ -129,7 +138,6 @@ class Chat():
             SELECT * FROM `messages`
             WHERE `tg_chat_id` = %s ORDER BY `id` DESC LIMIT 1
         """
-        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id,))
 
         row = cursor.fetchone()
@@ -145,7 +153,6 @@ class Chat():
                 `tg_chat_id` = %s
                 AND `id` > %s
         """
-        db.ping(reconnect=True)
         cursor.execute(sql, (self.tg_chat_id, message_id,))
         row = cursor.fetchone()
         if row is not None:
@@ -373,7 +380,6 @@ def get_word(word):
         return None
 
     sql = "SELECT * FROM `nouns_morf` WHERE `word` = %s LIMIT 1"
-    db.ping(reconnect=True)
     cursor.execute(sql, (word,))
 
     founded_form = cursor.fetchone()
@@ -391,7 +397,6 @@ def get_word(word):
             `code_parent` = %s
             OR `code` = %s
     """
-    db.ping(reconnect=True)
     for result in cursor.execute(sql, (wordcode, wordcode,), multi=True):
         result = cursor.fetchall()
         return result
