@@ -125,12 +125,7 @@ class Chat():
             sql, (text, self.tg_chat_id, tg_from_id, tg_message_id, username)
         )
         db.commit()
-        self.last_message['id'] = int(cursor.lastrowid)
-        self.last_message['text'] = text
-        self.last_message['tg_from_id'] = tg_from_id
-        self.last_message['tg_message_id'] = tg_message_id
-        self.last_message['username'] = username
-        self.msg_after_reply += 1
+        self.last_message = self.get_last_message()
 
     def get_last_message(self):
         sql = """
