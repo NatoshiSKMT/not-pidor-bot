@@ -390,11 +390,11 @@ def onphoto(update, context):
     tg_from_id = update.message.from_user.id
     # path = file.download(f'img/{tg_chat_id}/{tg_from_id}/jopa.jpg')
     path = file.download(f'img/{tg_chat_id}_{tg_from_id}_{file.file_unique_id}.jpg')
-    print(path)
     image = cv2.imread(path)
     string = pytesseract.image_to_string(image, lang="rus")
-    print("[ Tesseract] ", re.sub("[^а-яА-Я- ]+", "", string))
-    ontext(update, context, re.sub("[^а-яА-Я- ]+", "", string))
+    if len(re.sub("[^а-яА-Я]+", "", string)):
+        string = re.sub("[^а-яА-Я- ]+", "", string)
+        ontext(update, context, f'[OCR] {re.sub("[^а-яА-Я- ]+", "", string)}')
 
 
 def get_word(word):
