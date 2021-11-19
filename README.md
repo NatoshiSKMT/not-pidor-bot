@@ -6,6 +6,7 @@ Required MySQL db.
 
 ```
 pip3 install mysql-connector-python python-telegram-bot PyYAML --upgrade
+pip3 install pytesseract opencv-python --upgrade
 git clone https://github.com/NatoshiSKMT/not-pidor-bot.git
 cd not-pidor-bot/
 ```

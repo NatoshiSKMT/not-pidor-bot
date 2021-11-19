@@ -7,6 +7,10 @@ import logging
 from telegram.ext import Updater, MessageHandler, Filters
 from datetime import datetime, timezone
 
+import pytesseract
+import cv2
+
+
 # Set up the logger
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +59,7 @@ else:
 try:
     updater = Updater(token=config['token'])
     updater.start_polling()
+    # updater.idle()
     dispatcher = updater.dispatcher
 except Exception:
     logger.exception("Bot is NOT running")
@@ -177,7 +182,7 @@ def onsticker(update, context):
         logger.info(f"ADMIN onsticker: {update.message.sticker.file_id}")
 
 
-def ontext(update, context):
+def ontext(update, context, text=None):
     """
     Processing all patterns on text messages
     """
@@ -191,11 +196,14 @@ def ontext(update, context):
         logger.debug("Old message ignored")
         return
 
+    if text is None:
+        text = update.message.text
+
     tg_chat_id = update.message.chat.id
     tg_from_id = update.message.from_user.id
     logger.info("{}({}), {}({}): {}".format(
         update.message.chat.title, tg_chat_id,
-        update.message.from_user.username, tg_from_id, update.message.text
+        update.message.from_user.username, tg_from_id, text
     ))
 
     if tg_chat_id not in Chats:
@@ -206,11 +214,11 @@ def ontext(update, context):
 
     # Saving original a message
     current_chat.save_message(
-        update.message.text, tg_from_id, update.message.message_id,
+        text, tg_from_id, update.message.message_id,
         update.message.from_user.username
     )
 
-    clear_text = re.sub("[^а-яА-Я- ?+]+", "", update.message.text).lower()
+    clear_text = re.sub("[^а-яА-Я- ?+]+", "", text).lower()
 
     # Reply on patterns config['patterns']
     logger.debug('Reply on patterns...')
@@ -355,7 +363,7 @@ def ontext(update, context):
                         f"..{word_form['wcase']}..", word_form['word']
                     )
             if reply_text.find("..") >= 0:
-                logger.warning("Fail to replace all ..[form]..", reply_text)
+                # logger.warning("Fail to replace all ..[form]..", reply_text)
                 continue
             reply_text = reply_text[0].upper() + reply_text[1:]
             update.message.reply_text(reply_text, quote=True)
@@ -374,6 +382,19 @@ def onjoin(update, context):
     if update.message.new_chat_members[0].id == 982289358:  # лось
         update.message.reply_sticker(sticker=sticker)
         logger.info(f"REPLY: {sticker}")
+
+
+def onphoto(update, context):
+    file = context.bot.getFile(update.message.photo[-1].file_id)
+    tg_chat_id = update.message.chat.id
+    tg_from_id = update.message.from_user.id
+    # path = file.download(f'img/{tg_chat_id}/{tg_from_id}/jopa.jpg')
+    path = file.download(f'img/{tg_chat_id}_{tg_from_id}_{file.file_unique_id}.jpg')
+    print(path)
+    image = cv2.imread(path)
+    string = pytesseract.image_to_string(image, lang="rus")
+    print("[ Tesseract] ", re.sub("[^а-яА-Я- ]+", "", string))
+    ontext(update, context, re.sub("[^а-яА-Я- ]+", "", string))
 
 
 def get_word(word):
@@ -423,6 +444,9 @@ def main():
 
     join_handler = MessageHandler(Filters.status_update.new_chat_members, onjoin)
     dispatcher.add_handler(join_handler)
+
+    image_handler = MessageHandler(Filters.photo, onphoto)
+    dispatcher.add_handler(image_handler)
 
 
 if __name__ == '__main__':
