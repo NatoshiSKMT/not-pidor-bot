@@ -36,24 +36,14 @@ try:
         database=config['database'],
         password=config['password']
     )
+    db.ping(reconnect=True, attempts=100, delay=1)
     cursor = db.cursor(dictionary=True)
+
 except Exception:
-    logger.exception("Database connection error 1")
-    try:
-        db = mysql.connector.connect(
-            host=config['host'],
-            user=config['user'],
-            database=config['database'],
-            password=config['password']
-        )
-        cursor = db.cursor(dictionary=True)
-    except Exception:
-        logger.exception("Database connection error 2")
-        exit()
-    else:
-        logger.info("Database connected 2")
+    logger.exception("Database connection error")
+    exit()
 else:
-    logger.info("Database connected 1")
+    logger.info("Database connected")
 
 # Run telegram bot
 try:
