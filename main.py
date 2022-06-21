@@ -386,9 +386,9 @@ def onjoin(update, context):
 
 def onphoto(update, context):
     # check photo
-    if update.message.photo is None:
-        logger.error("Photo is None")
-        logger.error(update.message.photo)
+    if update.message is None:
+        logger.error("update.message is None")
+        logger.error(update)
         return
     
     file = context.bot.getFile(update.message.photo[-1].file_id)
