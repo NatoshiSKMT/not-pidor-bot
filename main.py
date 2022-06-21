@@ -90,7 +90,7 @@ class Chat():
         self.msg_after_reply = 0
         
         # send message to admin
-        updater.bot.send_message({'chat_id': config['admin_chat_id'], 'text': f"{text}"})
+        updater.bot.send_message(config['admin_chat_id'], f"{text}")
 
     def get_last_reply(self):
         sql = """
