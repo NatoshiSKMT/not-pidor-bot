@@ -76,7 +76,7 @@ class Chat():
         else:
             self.msg_after_reply = self.msg_count(self.last_reply['message_id'])
 
-    def save_reply(self, type, text, tg_chat_id, tg_from_id, tg_message_id):
+    def save_reply(self, type, text, tg_from_id, tg_message_id):
         sql = "INSERT INTO `replies` (`type`, `message_id`, `text`, `tg_chat_id`, `tg_from_id`, tg_message_id) VALUES (%s,%s,%s,%s,%s,%s)"
         cursor.execute(sql, (
             type, self.last_message['id'], text, self.tg_chat_id,
@@ -88,6 +88,9 @@ class Chat():
         self.last_reply['tg_from_id'] = tg_from_id
         self.last_reply['date'] = datetime.now(timezone.utc)
         self.msg_after_reply = 0
+        
+        # send message to admin
+        updater.bot.send_message({'chat_id': config['admin_chat_id'], 'text': f"{text}"})
 
     def get_last_reply(self):
         sql = """
@@ -271,7 +274,7 @@ def ontext(update, context, text=None):
                 update.message.reply_text(reply_text, reply_to_message_id=reply_to_message_id)
                 current_chat.save_reply(
                     reaction['type'], reply_text,
-                    tg_chat_id, tg_from_id, update.message.message_id)
+                    tg_from_id, update.message.message_id)
                 logger.info(f"REPLY: {reply_text}")
                 return
             elif reaction['reply_type'] == 'video':
@@ -279,7 +282,7 @@ def ontext(update, context, text=None):
                 update.message.reply_video(video=open(fname, 'rb'), supports_streaming=True, reply_to_message_id=reply_to_message_id)
                 current_chat.save_reply(
                     reaction['type'], fname,
-                    tg_chat_id, tg_from_id, update.message.message_id)
+                    tg_from_id, update.message.message_id)
                 logger.info(f"REPLY: {fname}")
                 return
             elif reaction['reply_type'] == 'photo':
@@ -287,7 +290,7 @@ def ontext(update, context, text=None):
                 update.message.reply_photo(photo=open(fname, 'rb'), caption=reaction['caption'], reply_to_message_id=reply_to_message_id)
                 current_chat.save_reply(
                     reaction['type'], fname,
-                    tg_chat_id, tg_from_id, update.message.message_id)
+                    tg_from_id, update.message.message_id)
                 logger.info(f"REPLY: {fname}")
                 return
             elif reaction['reply_type'] == 'voice':
@@ -295,7 +298,7 @@ def ontext(update, context, text=None):
                 update.message.reply_voice(voice=open(fname, 'rb'), reply_to_message_id=reply_to_message_id)
                 current_chat.save_reply(
                     reaction['type'], fname,
-                    tg_chat_id, tg_from_id, update.message.message_id)
+                    tg_from_id, update.message.message_id)
                 logger.info(f"REPLY: {fname}")
                 return
             elif reaction['reply_type'] == 'sticker':
@@ -303,7 +306,7 @@ def ontext(update, context, text=None):
                 update.message.reply_sticker(sticker=sticker, reply_to_message_id=reply_to_message_id)
                 current_chat.save_reply(
                     reaction['type'], sticker,
-                    tg_chat_id, tg_from_id, update.message.message_id)
+                    tg_from_id, update.message.message_id)
                 logger.info(f"REPLY: {sticker}")
                 return
 
@@ -316,9 +319,8 @@ def ontext(update, context, text=None):
     if current_chat.sec_after_r() < config['timeout_chat']:
         logger.debug(f"Chat timeout {config['timeout_chat'] - current_chat.sec_after_r()} s.")
         return
-    chat_timer = current_chat.msg_after_r()
-    if chat_timer < config['replies_frequency']:
-        logger.debug(f"Chat timeout {config['replies_frequency'] - chat_timer} msgs.")
+    if current_chat.msg_after_r() < config['replies_frequency']:
+        logger.debug(f"Chat timeout {config['replies_frequency'] - current_chat.msg_after_r()} msgs.")
         return
 
     for reaction in config['reactions']:
@@ -357,9 +359,11 @@ def ontext(update, context, text=None):
                 continue
             reply_text = reply_text[0].upper() + reply_text[1:]
             update.message.reply_text(reply_text, quote=True)
+            
+            # save replay to DB
             current_chat.save_reply(
                 1, reply_text,
-                tg_chat_id, tg_from_id, update.message.message_id)
+                tg_from_id, update.message.message_id)
             logger.info(f"REPLY: {reply_text}")
             return
     logger.debug('No chat reaction')
@@ -376,7 +380,7 @@ def onjoin(update, context):
 
 def onphoto(update, context):
     # check photo
-    if update.message.photo[-1].file_id is None:
+    if update.message.photo is None:
         logger.error("Photo is None")
         logger.error(update.message.photo)
         return
