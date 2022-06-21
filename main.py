@@ -66,6 +66,7 @@ class Chat():
         self.msg_after_reply = 0  # message counet
         self.last_message = self.get_last_message()  # Last received message
         self.last_reply = self.get_last_reply()  # Last bot replay
+        self.title = "None"
 
         # No replies in this chat
         if self.last_reply is None:
@@ -90,7 +91,7 @@ class Chat():
         self.msg_after_reply = 0
         
         # send message to admin
-        updater.bot.send_message(config['admin_chat_id'], f"{text}")
+        updater.bot.send_message(config['admin_chat_id'], f"{self.title}: {self.last_message} >>>> {text}", parse_mode="Markdown")
 
     def get_last_reply(self):
         sql = """
@@ -201,6 +202,7 @@ def ontext(update, context, text=None):
 
     if tg_chat_id not in Chats:
         current_chat = Chat(tg_chat_id)
+        current_chat.title = update.message.chat.title
         Chats[tg_chat_id] = current_chat
     else:
         current_chat = Chats[tg_chat_id]
