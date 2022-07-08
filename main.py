@@ -91,9 +91,9 @@ class Chat():
         self.msg_after_reply = 0
         
         # send message to admin
-        admin_text = "{}: [@{}] \n\n {} \n\n {}".format(
-            self.title, self.last_message['username'],
-            self.last_message['text'], text
+        admin_text = "{}\n{}\n{} | @{}".format(
+            self.last_message['text'], text,
+            self.title, self.last_message['username']
         )
         updater.bot.send_message(config['admin_chat_id'], admin_text, parse_mode="Markdown")
 
